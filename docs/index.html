@@ -9,8 +9,8 @@
 </head>
 <body>
 <header class="top"><div class="wrap">
-<a class="brand" href="#hero"><svg viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#3976de"/><path d="M7 19V14M14 19V8M21 19V11" stroke="white" stroke-width="3"/></svg><span>资源观察台</span></a>
-<nav class="top-nav" aria-label="页面导航"><a href="#placements">位置总览</a><a href="#master">每日总表</a></nav>
+<a class="brand" href="#overview" data-view="overview"><svg viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#3976de"/><path d="M7 19V14M14 19V8M21 19V11" stroke="white" stroke-width="3"/></svg><span>资源观察台</span></a>
+<nav class="top-nav" aria-label="页面导航"><a href="#overview" data-view="overview" aria-current="page">总览</a><a href="#daily" data-view="daily">每日记录</a><a href="#query" data-view="query">查询与导出</a></nav>
 <div class="seg" role="group" aria-label="平台"><button data-p="all" aria-pressed="true">全部</button><button data-p="gamecenter" aria-pressed="false"><span class="dot gc-dot"></span>游戏中心</button><button data-p="appgallery" aria-pressed="false"><span class="dot ag-dot"></span>应用市场</button></div>
 </div></header>
 <section class="hero" id="hero"><div class="wrap hero-in share-hero">
@@ -19,18 +19,29 @@
 </div></section>
 <main class="wrap">
 <form class="filterbar" id="filters" aria-label="筛选观察范围">
-<label>观察范围<select id="range-select"><option value="today">今天</option><option value="7" selected>最近 7 天</option><option value="30">最近 30 天</option><option value="90">最近 90 天</option><option value="all">全部记录</option><option value="custom">自选日期</option></select></label>
+<label id="range-field">观察范围<select id="range-select"><option value="latest" selected>最近一次采样</option><option value="today">今天</option><option value="7">最近 7 天</option><option value="30">最近 30 天</option><option value="90">最近 90 天</option><option value="all">全部记录</option><option value="custom">自选日期</option></select></label>
 <div class="custom-dates" id="custom-dates" hidden><label>从<input type="date" id="date-from"></label><label>到<input type="date" id="date-to"></label><button type="submit" class="action">应用</button></div>
 <div class="priority-filter" role="group" aria-label="位置级别"><button type="button" data-pr="all" aria-pressed="true">全部位置</button><button type="button" data-pr="focus" aria-pressed="false">重点位置</button><button type="button" data-pr="other" aria-pressed="false">其他位置</button></div>
 </form>
 <p id="range-note" class="range-note" role="status"></p><p id="stale" class="stale" hidden></p>
+<div id="overview-panel">
 <section class="sec" id="placements"><div class="sh"><span class="no">01</span><h2>每个位置的占比</h2><span class="sub">点开位置，查看每天的归属与截图</span></div>
 <div class="legend"><span class="tencent-key">腾讯</span><span class="other-key">其他厂商</span><span class="unknown-key">待核实</span><span class="topic-key">平台活动／专题</span></div>
 <p class="method-inline">先算每个位置每天的内容占比，再对有效采样日取平均。未采到的日期不补 0。</p>
 <div id="placement-groups"></div></section>
-<section class="sec" id="analysis"><div class="sh"><span class="no">02</span><h2>自动观察</h2><span class="sub">跟随上方日期、平台和位置筛选</span></div><div id="insights" class="insights"></div><p class="quality-note" id="quality-note"></p><details class="timeline-panel" id="trend-details"><summary>逐日占比与覆盖</summary><div id="timeline"></div></details></section>
-<section class="sec" id="master"><div class="sh"><span class="no">03</span><h2>每日总表</h2><span class="sub" id="master-count"></span><button id="export-range" class="action" type="button">下载所选范围 CSV</button></div>
-<label class="search-label">查找产品、公司或资源位<input type="search" id="search" placeholder="例如：王者荣耀、腾讯、首屏" autocomplete="off"></label><div id="master-table" class="table-scroll" tabindex="0" role="region" aria-label="每日资源明细总表"></div><div id="pagination" class="pagination"></div>
+<section class="sec" id="analysis"><div class="sh"><span class="no">02</span><h2>自动观察</h2><span class="sub">跟随上方日期、平台和位置筛选</span><a class="text-action" href="#daily" data-view="daily">查看每日记录 →</a></div><div id="insights" class="insights"></div><p class="quality-note" id="quality-note"></p><details class="timeline-panel" id="trend-details"><summary>逐日占比与覆盖</summary><div id="timeline"></div></details></section>
+</div>
+<section class="sec view-panel" id="daily-panel" hidden aria-labelledby="daily-title">
+<div class="sh"><h2 id="daily-title">每日记录</h2><span class="sub">先看摘要，再展开当天的位置；历史按日期翻阅</span></div>
+<div class="day-toolbar"><label>查看日期<select id="daily-date"></select></label><div class="day-step"><button type="button" id="previous-day">上一采样日</button><button type="button" id="next-day">下一采样日</button><button type="button" id="latest-day">最近一次</button></div><button id="export-day" class="action" type="button">下载当日 CSV</button></div>
+<p id="daily-date-note" class="method-inline"></p><div id="daily-stats" class="daily-stats"></div>
+<div id="daily-comparison" class="daily-comparison" role="status"></div>
+<div class="day-list-heading"><h3>当天的位置记录</h3><label><input type="checkbox" id="only-changes">只看有变化的位置</label></div>
+<div id="daily-placements"></div>
+</section>
+<section class="sec view-panel" id="query-panel" hidden aria-labelledby="query-title"><div class="sh"><h2 id="query-title">查询与导出</h2><span class="sub" id="master-count"></span><button id="export-range" class="action" type="button">下载查询结果 CSV</button></div>
+<p class="method-inline">查询结果按上方日期、平台和位置级别筛选；下载包含全部匹配记录，不受分页影响。</p>
+<div class="query-controls"><label class="search-label">查找日期、产品、公司或资源位<input type="search" id="search" placeholder="例如：2026-11-13、王者荣耀、腾讯" autocomplete="off"></label><label>归属<select id="owner-filter"><option value="all">全部归属</option><option value="tencent">腾讯</option><option value="other">其他厂商</option><option value="unknown">待核实</option><option value="topic">平台活动／专题</option></select></label></div><div id="master-table" class="table-scroll" tabindex="0" role="region" aria-label="每日资源明细总表"></div><div id="pagination" class="pagination"></div>
 </section>
 <footer class="foot">
 <details id="scope-details"><summary>计算与采样口径</summary><ul><li>单个位置当天的腾讯占比 = 当天已采腾讯产品条数 ÷ 该位置已采内容总条数。同位置、同日的同一产品只计一次；不同位置分别计数。</li><li>区间位置占比 = 该位置各有效采样日占比的平均值。顶部整体占比按所有已采“位置 × 日期”等权平均；不按截图张数、页面面积、排名或停留时长加权。</li><li>其他厂商、待核实、平台活动／专题使用相同分母。四类合计为 100%，显示值四舍五入可能有尾差。区间明细中各厂商比例也以全部已采内容为分母。</li><li id="ownership-policy"></li><li>归属依据来自官方产品页面、厂商入驻商店和公开主体资料。它不代表鸿蒙渠道具体合同、结算主体或资源购买方；名称无法准确对应时保留待核实。</li><li>五个主要页面前段与当时可见轮播；同一台手机、同一账号，是否个性化不确定。每日一次快照不代表全天排期、全平台曝光或投放效果。</li><li>“新出现”和“本次未见”只比较两次共同采到的位置。缺采不等于没有投放，也不据此认定下架。</li><li id="automation-status"></li></ul></details>
@@ -40,4 +51,5 @@
 <p class="meta" id="meta" role="status" aria-live="polite"></p>
 </footer>
 </main>
+<dialog id="record-dialog" aria-labelledby="record-dialog-title"><div class="dialog-heading"><h2 id="record-dialog-title">记录详情</h2><button type="button" id="close-record" aria-label="关闭记录详情">关闭</button></div><div id="record-dialog-content"></div></dialog>
 </body></html>

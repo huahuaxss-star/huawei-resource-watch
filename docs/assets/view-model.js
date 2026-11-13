@@ -108,6 +108,30 @@
     }
     return results;
   }
+  function dailyReport(data,date,{platform='all',priority='all'}={}) {
+    const view=aggregate(data,{start:date,end:date,platform,priority});
+    const ordered=data.snapshots.slice().sort((a,b)=>a.date.localeCompare(b.date));
+    const after=ordered.find(s=>s.date===date),before=ordered.filter(s=>s.date<date).at(-1);
+    const chosen=new Set(view.summaries.map(s=>s.slot.id));
+    const nonempty=s=>s?{...s,covered_slots:s.covered_slots.filter(id=>s.records.some(r=>r.slot_id===id))}:s;
+    const raw=compareSnapshots(nonempty(before),nonempty(after),platform);
+    const comparableSlots=(raw.comparableSlots||[]).filter(id=>chosen.has(id));
+    const items=raw.items.filter(x=>chosen.has(x.row.slot_id));
+    const changedSlots=[...new Set(items.filter(x=>x.status!=='same').map(x=>x.row.slot_id))];
+    const counts=Object.fromEntries(['seen','changed','not_seen','same'].map(k=>[k,items.filter(x=>x.status===k).length]));
+    return {view,date,previousDate:before?.date||null,ready:Boolean(raw.ready&&comparableSlots.length),
+      comparableSlots,changedSlots,items,counts,routeChanged:raw.routeChanged||false,
+      unmatchedSlots:(raw.unmatchedSlots||[]).filter(id=>chosen.has(id))};
+  }
+  function queryRecords(rows,{query='',owner='all',page=1,size=25}={}) {
+    const q=query.trim().toLocaleLowerCase();
+    const filtered=rows.filter(r=>(owner==='all'||bucketFor(r)===owner)&&(!q||
+      [r.sample_date,r.object_name,r.headline,r.slot_name,r.platform,r.ownership?.company,r.ownership?.operator].join(' ').toLocaleLowerCase().includes(q)));
+    const safeSize=Math.min(100,Math.max(1,Math.floor(Number(size)||25)));
+    const pages=Math.max(1,Math.ceil(filtered.length/safeSize));
+    const current=Math.min(pages,Math.max(1,Math.floor(Number(page)||1)));
+    return {filtered,rows:filtered.slice((current-1)*safeSize,current*safeSize),page:current,pages,total:filtered.length,size:safeSize};
+  }
   function masterCsv(rows) {
     const cols=[['sample_date','日期'],['platform','平台'],['page','页面'],['slot_id','资源位ID'],['slot_name','资源位名称'],['priority','位置级别'],['object_name','游戏或应用'],['headline','主标题'],['copy','文案'],['owner_category','归属分类'],['owner_company','发行／运营方'],['owner_operator','公开主体'],['owner_status','核对状态'],['owner_sources','归属依据'],['observed_at','采样时间'],['screenshot','截图证据'],['record_id','记录ID']];
     const labels={tencent:'腾讯',other:'其他厂商',unknown:'待核实',topic:'平台活动／专题'};
@@ -115,5 +139,5 @@
     const lines=rows.map(r=>({...r,priority:r.priority==='focus'?'重点':'其他',owner_category:labels[bucketFor(r)],owner_company:r.ownership?.company||labels[bucketFor(r)],owner_operator:r.ownership?.operator||'',owner_status:r.ownership?.status==='confirmed'?'已核对':bucketFor(r)==='topic'?'非产品':'待核实',owner_sources:(r.ownership?.sources||[]).map(s=>s.url).join(' | ')}));
     return '\uFEFF'+[cols.map(c=>quote(c[1])).join(','),...lines.map(r=>cols.map(c=>quote(r[c[0]])).join(','))].join('\r\n');
   }
-  root.ResourceWatchModel = {contentKey, compareSnapshots, datePresentation, selectionAfterUpdate,BUCKETS,calendarDays,dateRange,bucketFor,uniqueRows,dailySlot,aggregate,insights,masterCsv};
+  root.ResourceWatchModel = {contentKey, compareSnapshots, datePresentation, selectionAfterUpdate,BUCKETS,calendarDays,dateRange,bucketFor,uniqueRows,dailySlot,aggregate,insights,dailyReport,queryRecords,masterCsv};
 })(globalThis);

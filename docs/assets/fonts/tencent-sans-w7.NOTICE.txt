@@ -1,0 +1,15 @@
+TencentSans W7 — web font format derivatives
+
+Copyright (c) 2018-2019 Tencent Technology (Shenzhen) Co., Ltd. All rights reserved.
+Copyright © 2018-2019 Tencent Technology (Shenzhen) Co., Ltd. All rights reserved.
+
+Tencent is a registered trademark of Tencent Technology (Shenzhen) Co., Ltd. and may be registered in certain jurisdictions.
+
+Source font version: Version 1.02
+Source PostScript name: TencentSansW7
+Preserved OS/2 fsType value: 8
+
+tencent-sans-w7-full.woff2: full source glyph inventory in WOFF2 format.
+tencent-sans-w7-ui.woff2: WOFF2 subset for static UI and current product names.
+Source name, copyright, trademark, version and fsType metadata are retained.
+This format conversion and subset do not grant or alter font rights or licensing.

@@ -31,7 +31,7 @@ function repeats(app){
 function overview(){
   const all = DATA.records.filter(r => cur === "all" || r.app_key === cur);
   const gc = all.filter(r => r.app_key === "gamecenter").length, ag = all.length - gc;
-  document.getElementById("ov-sub").textContent = `${DATA.date} 采样`;
+  document.getElementById("ov-sub").textContent = `${DATA.date} 记录`;
   document.getElementById("lead").innerHTML =
     `今天看到 <b>${DATA.slots.length}</b> 个位置、<b>${all.length}</b> 条内容（游戏中心 ${gc} 条，应用市场 ${ag} 条）。重点位置共 <b>${DATA.slots.filter(s=>s.priority==="focus").length}</b> 个，主推内容如下。`;
   document.getElementById("ov").innerHTML = plats().map(app => {
@@ -47,13 +47,13 @@ function overview(){
     </div>`;
   }).join("");
   document.getElementById("diff-text").textContent = DATA.prev
-    ? "" : `这是第一次采样（${DATA.date}），作为基线。下次采样起在这里列出新出现、换内容和本次未见的位置。`;
+    ? "" : `这是第一次记录（${DATA.date}），作为基线。下次记录起在这里列出新出现、换内容和本次未见的位置。`;
 }
 
 function kv(r){
   const s = slotById[r.slot_id];
   const rows = [
-    [r.module_name_source === "采集位置描述" ? "采样位置" : "页面原标题", r.module], ["位置", r.position_note], ["页面标签", r.label],
+    [r.module_name_source === "采集位置描述" ? "记录位置" : "页面原标题", r.module], ["位置", r.position_note], ["页面标签", r.label],
     ["类型", r.genre], ["评分", r.score], ["活动/上线", r.period_text], ["按钮", r.cta_text],
     ["可见性", r.visibility], 
     ["原始证据", safeShot(r.screenshot) ? `<a href="${esc(r.screenshot)}" target="_blank" rel="noopener">查看原始截图 ↗</a>` : ""],
@@ -105,8 +105,8 @@ function other(){
 }
 
 function footer(){
-  fillDates(); document.getElementById("time-note").textContent = ` · ${DATA.completed_at.slice(11,16)} 采样`;
-  document.getElementById("ver").textContent = `${STORE.snapshots.length} 个采样日 · 北京时间`;
+  fillDates(); document.getElementById("time-note").textContent = ` · ${DATA.completed_at.slice(11,16)} 记录`;
+  document.getElementById("ver").textContent = `${STORE.snapshots.length} 个记录日 · 北京时间`;
   document.getElementById("scope").textContent = `范围：${DATA.scope}（${DATA.started_at.slice(11,16)}–${DATA.completed_at.slice(11,16)}，单台手机）。`;
   document.getElementById("naming").innerHTML = `<table><thead><tr><th>平台</th><th>资源位</th><th>页面原标题</th><th>分组</th></tr></thead><tbody>${
     [...DATA.slots].sort((a,b)=>a.order-b.order).map(s => `<tr><td>${PLAT[s.app].name}</td><td>${esc(s.name)}</td><td>${esc(s.aliases.join("、"))}</td><td>${s.priority==="focus"?"重点":"其他"}</td></tr>`).join("")
@@ -127,19 +127,19 @@ function renderSummary(){
  const rr=DATA.records.filter(r=>cur==='all'||r.app_key===cur),s=stats(rr),n=new Set(rr.filter(r=>slotById[r.slot_id].priority==='focus').map(r=>r.slot_id)).size;
  document.getElementById('lead').innerHTML=`本次看到 <b>${s.slots}</b> 个位置、<b>${rr.length}</b> 条内容。重点位置 <b>${n}</b> 个，先看它们在推什么。`;
  const latest=STORE.snapshots.at(-1),today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
- const note=document.getElementById('stale-note');note.hidden=latest.date===today;note.textContent=`最近成功采样：${latest.date}。今天尚无已核对记录。`;
+ const note=document.getElementById('stale-note');note.hidden=latest.date===today;note.textContent=`最近成功记录：${latest.date}。今天尚无已核对记录。`;
 }
 function renderDiff(){
  const d=compareSnapshots(DATA.prev,DATA,cur),detail=document.getElementById('diff-details'),list=document.getElementById('diff-list');detail.hidden=!d.ready;
- if(!d.ready){document.getElementById('diff-text').textContent='第一份观察记录。下次采样后，比较同一位置的内容变化。';list.innerHTML='';return;}
+ if(!d.ready){document.getElementById('diff-text').textContent='第一份观察记录。下次记录后，比较同一位置的内容变化。';list.innerHTML='';return;}
  const counts={seen:0,changed:0,not_seen:0,same:0};d.items.forEach(x=>counts[x.status]++);
- document.getElementById('diff-text').textContent=`${d.comparableSlots.length} 个共同采样位置：本次见到 ${counts.seen} 条、内容变化 ${counts.changed} 条、本次未见 ${counts.not_seen} 条。`;
+ document.getElementById('diff-text').textContent=`${d.comparableSlots.length} 个共同记录位置：本次见到 ${counts.seen} 条、内容变化 ${counts.changed} 条、本次未见 ${counts.not_seen} 条。`;
  const labels={seen:'本次见到',changed:'内容变化',not_seen:'本次未见'};
- list.innerHTML=(d.routeChanged?'<p class="note">采样路线有调整，以下差异仅供参考。</p>':'')+(d.unmatchedSlots.length?`<p class="note">${d.unmatchedSlots.length} 个位置只有一侧采到，未做增减判断。</p>`:'')+d.items.filter(x=>x.status!=='same').map(x=>`<div class="diff-item"><span class="diff-tag ${x.status}">${labels[x.status]}</span><div><b>${esc(title(x.row))}</b><span class="note"> · ${esc(x.row.slot_name)}</span>${x.status==='changed'?'<p>上次：'+esc([x.before.headline,x.before.copy,x.before.period_text].filter(Boolean).join(' / '))+'<br>本次：'+esc([x.row.headline,x.row.copy,x.row.period_text].filter(Boolean).join(' / '))+'</p>':''}</div></div>`).join('')+'<p class="note">“本次未见”不代表下架。轮播及个性化内容可能随时点变化。</p>';
+ list.innerHTML=(d.routeChanged?'<p class="note">记录路线有调整，以下差异仅供参考。</p>':'')+(d.unmatchedSlots.length?`<p class="note">${d.unmatchedSlots.length} 个位置只有一侧采到，未做增减判断。</p>`:'')+d.items.filter(x=>x.status!=='same').map(x=>`<div class="diff-item"><span class="diff-tag ${x.status}">${labels[x.status]}</span><div><b>${esc(title(x.row))}</b><span class="note"> · ${esc(x.row.slot_name)}</span>${x.status==='changed'?'<p>上次：'+esc([x.before.headline,x.before.copy,x.before.period_text].filter(Boolean).join(' / '))+'<br>本次：'+esc([x.row.headline,x.row.copy,x.row.period_text].filter(Boolean).join(' / '))+'</p>':''}</div></div>`).join('')+'<p class="note">“本次未见”不代表下架。轮播及个性化内容可能随时点变化。</p>';
 }
 function renderHistory(){
  const days=STORE.snapshots.slice().reverse(),max=Math.max(1,...days.map(s=>s.records.filter(r=>cur==='all'||r.app_key===cur).length));
- document.getElementById('history').innerHTML=days.map(s=>{const rr=s.records.filter(r=>cur==='all'||r.app_key===cur);return `<div class="history-row"><button data-history-date="${s.date}">${s.date}</button><div class="history-track"><span style="width:${rr.length/max*100}%"></span></div><span>${rr.length} 条 · ${new Set(rr.map(r=>r.slot_id)).size} 位</span><small>${s.completed_at.slice(11,16)} 已核对</small></div>`;}).join('')+'<p class="note">条数反映采样覆盖及可见内容，不能用于推算曝光或资源投入。</p>';
+ document.getElementById('history').innerHTML=days.map(s=>{const rr=s.records.filter(r=>cur==='all'||r.app_key===cur);return `<div class="history-row"><button data-history-date="${s.date}">${s.date}</button><div class="history-track"><span style="width:${rr.length/max*100}%"></span></div><span>${rr.length} 条 · ${new Set(rr.map(r=>r.slot_id)).size} 位</span><small>${s.completed_at.slice(11,16)} 已核对</small></div>`;}).join('')+'<p class="note">条数反映记录覆盖及可见内容，不能用于推算曝光或资源投入。</p>';
  document.querySelectorAll('[data-history-date]').forEach(b=>b.onclick=()=>{selectedDate=b.dataset.historyDate;render();window.scrollTo({top:0,behavior:'smooth'});});
 }
 async function refresh(manual=false){
@@ -147,7 +147,7 @@ async function refresh(manual=false){
  if(location.protocol==='file:'){if(manual)status.textContent='本地快照；在线页面可自动更新';return;}
  try{
   const r=await fetch('data/manifest.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('manifest');const m=await r.json();
-  if(m.version!==STORE.version){const r=await fetch('data/site.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('data');const n=await r.json();if(n.schema_version!==1||!Array.isArray(n.snapshots)||!Array.isArray(n.slots))throw Error('schema');const follow=selectedDate===STORE.snapshots.at(-1)?.date;STORE=n;if(follow)selectedDate=STORE.snapshots.at(-1)?.date||'';render();status.textContent='已更新至最新成功采样';}else if(manual)status.textContent='已是最新成功记录';
+  if(m.version!==STORE.version){const r=await fetch('data/site.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('data');const n=await r.json();if(n.schema_version!==1||!Array.isArray(n.snapshots)||!Array.isArray(n.slots))throw Error('schema');const follow=selectedDate===STORE.snapshots.at(-1)?.date;STORE=n;if(follow)selectedDate=STORE.snapshots.at(-1)?.date||'';render();status.textContent='已更新至最新成功记录';}else if(manual)status.textContent='已是最新成功记录';
  }catch{status.textContent='更新检查失败，当前记录仍可查看';}
 }
 document.getElementById('date-select').onchange=e=>{selectedDate=e.target.value;render();};

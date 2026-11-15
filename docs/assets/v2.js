@@ -16,9 +16,15 @@ const gameName=r=>isGame(r)?'<button type="button" class="game-history-link" dat
 const hm=t=>Number.isFinite(Date.parse(t))?new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(t)):'';
 const url=u=>/^https:\/\//.test(u||'')?u:'#';
 const shot=u=>/^evidence\/\d{8}\/[a-f0-9]{20}\.(jpe?g|png)$/.test(u||'')?u:'';
-if(!ALL_DATA?.snapshots){document.querySelector('main').innerHTML='<p class="empty-state">暂无已发布数据。</p>';return;}
+const registry=()=>ALL_DATA.datasets||[DATA?.dataset];
+const vendorOf=d=>d.vendor||d.id.split('-')[0];
+const isDual=d=>d.edition==='dual'||d.edition_name==='双框';
+const hasScopeRecords=id=>(ALL_DATA.snapshots||[]).some(s=>(s.dataset_id||'huawei-single')===id&&s.records?.length);
+const scopeListed=d=>d&&d.visible!==false&&!(isDual(d)&&!hasScopeRecords(d.id));
+if(!ALL_DATA?.snapshots){document.querySelector('main').innerHTML='<p class="empty-state">暂无已发布数据，更新后可在这里查看。</p>';return;}
 const requestedScope=new URLSearchParams(location.search).get('scope');
-const initialScope=ALL_DATA.datasets?.some(d=>d.visible&&d.id===requestedScope)?requestedScope:(ALL_DATA.default_dataset||'huawei-single');
+const fallbackScope=(ALL_DATA.datasets||[]).find(scopeListed);
+const initialScope=ALL_DATA.datasets?.some(d=>scopeListed(d)&&d.id===requestedScope)?requestedScope:(scopeListed((ALL_DATA.datasets||[]).find(d=>d.id===ALL_DATA.default_dataset))?ALL_DATA.default_dataset||'huawei-single':(fallbackScope?.id||ALL_DATA.default_dataset||'huawei-single'));
 DATA=M.selectDataset(ALL_DATA,initialScope);
 const latest=()=>DATA.snapshots.at(-1)?.date||null;
 const firstDate=()=>DATA.snapshots[0]?.date||today();
@@ -28,16 +34,18 @@ let currentView,dayReport,filteredRows=[],refreshing=false,lastRenderToday='';
 const filters=()=>({platform:state.p,priority:state.priority,contentType:state.contentType});
 const contentLabel=()=>({all:'全部内容',game:'游戏',app:'应用'}[state.contentType]);
 const shareLabel=()=>'腾讯资源占比';
-const registry=()=>ALL_DATA.datasets||[DATA.dataset];
-const vendorOf=d=>d.vendor||d.id.split('-')[0];
+const shareTone=share=>share===0?' is-zero':share===1?' is-full':'';
+const scopeCaption=()=>contentLabel()+' · '+(state.range==='latest'?'最新日期':state.range==='today'?'今天':state.range==='all'?'全部记录':state.range==='custom'?(state.start&&state.end?state.start+' — '+state.end:'自选日期'):'最近 '+state.range+' 天');
 function renderScopes(){
  const currentVendor=vendorOf(DATA.dataset),vendors=new Map(VENDORS);
  registry().forEach(d=>vendors.set(vendorOf(d),d.vendor_name||vendors.get(vendorOf(d))||d.label));
  if($('vendor-tabs'))$('vendor-tabs').innerHTML=[...vendors].map(([id,label])=>{
-  const available=registry().some(d=>d.visible&&vendorOf(d)===id),selected=currentVendor===id;
+  const available=registry().some(d=>scopeListed(d)&&vendorOf(d)===id),selected=currentVendor===id;
   return '<button type="button" data-vendor="'+esc(id)+'" aria-pressed="'+selected+'"'+(available?'':' disabled aria-label="'+esc(label+'，待接入')+'"')+'><span>'+esc(label)+'</span>'+(available?'':'<small>待接入</small>')+'</button>';
  }).join('');
- $('dataset-select').innerHTML=registry().filter(d=>d.visible&&vendorOf(d)===currentVendor).map(d=>'<option value="'+esc(d.id)+'" '+(d.id===state.dataset?'selected':'')+'>'+esc(d.edition_name||d.label)+'</option>').join('');
+ const scopes=registry().filter(d=>scopeListed(d)&&vendorOf(d)===currentVendor);
+ $('dataset-select').innerHTML=scopes.map(d=>'<option value="'+esc(d.id)+'" '+(d.id===state.dataset?'selected':'')+'>'+esc(d.edition_name||d.label)+'</option>').join('');
+ const datasetLabel=$('dataset-select').closest('label');if(datasetLabel)datasetLabel.hidden=scopes.length<2;
 }
 function renderPageHeading(){
  const headings={summary:'厂商汇总',overview:'资源总览',daily:'每日动态',query:'历史查询'};
@@ -75,8 +83,8 @@ function updateStatus(){
 }
 function range(){return state.range==='latest'?{start:latest(),end:latest()}:M.dateRange(state.range,today(),firstDate(),state.start,state.end);}
 function links(sources){return(sources||[]).map((s,i)=>'<a href="'+esc(url(s.url))+'" target="_blank" rel="noopener">'+esc(s.title||'官方依据')+(sources.length>1?' '+(i+1):'')+' ↗</a>').join(' · ');}
-function bar(shares){return '<div class="sharebar" role="img" aria-label="'+M.BUCKETS.map(k=>LABEL[k]+' '+percent(shares[k])).join('，')+'">'+M.BUCKETS.filter(k=>shares[k]>0).map(k=>'<span class="share-'+k+'" style="width:'+shares[k]*100+'%"></span>').join('')+'</div>';}
-function numbers(shares){return '<div class="share-numbers">'+M.BUCKETS.filter(k=>k==='tencent'||k==='other'||shares[k]>0).map(k=>'<span class="'+k+'-text">'+LABEL[k]+' <b>'+percent(shares[k])+'</b></span>').join('')+'</div>';}
+function bar(shares){return '<div class="sharebar'+shareTone(shares.tencent)+'" role="img" aria-label="'+M.BUCKETS.map(k=>LABEL[k]+' '+percent(shares[k])).join('，')+'">'+M.BUCKETS.filter(k=>shares[k]>0).map(k=>'<span class="share-'+k+'" style="width:'+shares[k]*100+'%"></span>').join('')+'</div>';}
+function numbers(shares){return '<div class="share-numbers">'+M.BUCKETS.filter(k=>k==='tencent'||k==='other'||shares[k]>0).map(k=>'<span class="'+k+'-text">'+LABEL[k]+' <b class="'+shareTone(shares[k]).trim()+'">'+percent(shares[k])+'</b></span>').join('')+'</div>';}
 function evidence(r,open=false){const o=r.ownership||{},src=shot(r.screenshot);return '<details class="more" '+(open?'open':'')+'><summary>详情与截图</summary><div class="ev'+(src?'':' noimg')+'"><dl class="kv">'+[
  ['页面模块',r.module],['产品',r.object_name],['主标题',r.headline],['文案',r.copy],['补充文案',r.app_copy],['活动时间',r.period_text],['页面名次',r.rank],['公开主体',o.operator],['归属备注',o.note],['记录时间',r.observed_at]
  ].filter(x=>x[1]).map(([k,v])=>'<dt>'+k+'</dt><dd>'+(k==='产品'?gameName(r):esc(v))+'</dd>').join('')+(o.sources?.length?'<dt>归属依据</dt><dd>'+links(o.sources)+'</dd>':'')+'</dl>'+(src?'<a class="shot" href="'+esc(src)+'" target="_blank" rel="noopener"><img src="'+esc(src)+'" loading="lazy" alt="'+esc(r.platform+' '+r.slot_name+' '+r.sample_date+'截图')+'"><span>查看完整截图 ↗</span></a>':'')+'</div></details>';}
@@ -89,7 +97,7 @@ function placement(s,mode='overview'){
   const summary=products.slice(0,2).map(gameName).join('、')+(products.length>2?' 等 '+products.length+' '+unit:'');
   const singleDate=currentView.start===currentView.end;
   const context=missing?(singleDate?'当天暂无内容':'期间暂无内容'):singleDate?currentView.start:'有记录 '+s.sampleDays+' 天';
-  const share=missing?'<span class="empty-line">—</span>':'<span class="placement-percent">'+percent(s.shares.tencent)+'</span><span class="mini-sharebar" role="img" aria-label="腾讯资源占比 '+percent(s.shares.tencent)+'"><span class="share-tencent" style="width:'+s.shares.tencent*100+'%"></span></span>';
+  const share=missing?'<span class="empty-line">—</span>':'<span class="placement-percent'+shareTone(s.shares.tencent)+'">'+percent(s.shares.tencent)+'</span><span class="mini-sharebar'+shareTone(s.shares.tencent)+'" role="img" aria-label="腾讯资源占比 '+percent(s.shares.tencent)+'"><span class="share-tencent" style="width:'+s.shares.tencent*100+'%"></span></span>';
   return '<details class="placement overview-placement" id="slot-'+esc(slot.id)+'" data-slot="'+esc(slot.id)+'" data-mode="overview"><summary><div class="place-name"><span class="place-title">'+esc(slot.name)+'</span><small>'+esc(slot.platform||PLAT[slot.app]||slot.app)+'</small></div><div class="place-products"><span>'+(summary||'暂无记录')+'</span><small>'+esc(context)+'</small></div><div class="place-shares">'+share+'</div><span class="open-label">查看内容 <span class="ar">›</span></span></summary><div class="slot-body"></div></details>';
  }
  return '<details class="placement '+(slot.app==='gamecenter'?'gc':'ag')+'" id="'+(isDay?'day-slot-':'slot-')+esc(slot.id)+'" data-slot="'+esc(slot.id)+'" data-mode="'+mode+'"><summary><div class="place-name"><span class="priority-tag">'+(slot.priority==='focus'?'重点':'其他')+'</span><b>'+esc(slot.name)+'</b><small>'+(isDay?(missing?'当天暂无记录':s.days[0].rows.map(gameName).join(' · ')):esc(slot.kind))+'</small></div><div class="place-shares">'+(missing?'<span class="empty-line">暂无记录</span>':bar(s.shares)+numbers(s.shares))+'</div><div class="place-coverage"><b>'+(isDay?s.records+' 条':s.sampleDays+' 天')+'</b><small>'+esc(isDay?change:s.records+' 条内容')+'</small></div><span class="open-label">'+(isDay?'查看内容':'按日查看')+' <span class="ar">›</span></span></summary><div class="slot-body"></div></details>';
@@ -118,6 +126,7 @@ function renderHero(V){
  $('hero-composition').innerHTML=V.slotDays?bar(V.shares)+numbers(V.shares):'<p>所选范围暂无数据</p>';
  const stat=(label,n,unit)=>'<div class="stat"><span class="stat-label">'+label+'</span><span class="stat-value">'+n+'</span><span class="stat-unit">'+unit+'</span></div>';
  $('stats').innerHTML=stat(state.contentType==='all'?'展示位置':'匹配资源位',V.observedSlots,'个位置')+stat('展示'+(state.contentType==='all'?'产品':contentLabel()),new Set(V.rows.map(r=>r.object_name).filter(Boolean)).size,'款'+(state.contentType==='all'?'产品':contentLabel()));
+ if($('hero-scope'))$('hero-scope').textContent='口径：'+scopeCaption();
  $('range-note').textContent=state.view==='daily'?'':V.validRange?(V.start===V.end?V.end:V.start+' — '+V.end)+' · '+V.dates.length+' 个记录日':'开始日期不能晚于结束日期。';
  const note=latest()&&latest()!==today()?'今天暂无更新':'';
  $('stale').hidden=!note;$('stale').textContent=note;
@@ -131,7 +140,7 @@ function renderInsights(V){
  $('quality-note').hidden=!V.unknownProducts.length;
  $('insights').innerHTML=insights.map((x,i)=>'<article><span class="insight-index">0'+(i+1)+'</span><div><h3>'+esc(x.title)+'</h3><p>'+esc(x.text)+'</p></div></article>').join('');
  $('quality-note').textContent=!V.slotDays?'':V.unknownProducts.length?'归属待确认：'+V.unknownProducts.join('、')+'。':'';
- $('trend-details').hidden=V.dates.length<2;$('timeline').innerHTML='';if($('trend-details').open)renderTimeline();
+ $('trend-details').hidden=V.dates.length<3;$('timeline').innerHTML='';if($('trend-details').open)renderTimeline();
 }
 function renderTimeline(){const V=currentView;const days=V.timeline.slice(-30).reverse();$('timeline').innerHTML=days.length?'<div class="table-scroll"><table class="data-table timeline-table"><colgroup><col class="col-date"><col span="5"></colgroup><thead><tr><th>日期</th><th>展示位置</th><th>腾讯</th><th>其他厂商</th><th>待核实</th><th>活动／专题</th></tr></thead><tbody>'+days.map(d=>'<tr><td><button class="text-action" data-open-day="'+d.date+'">'+d.date+'</button></td><td>'+d.slots+'</td>'+M.BUCKETS.map(k=>'<td>'+percent(d.shares[k])+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>':'<p>暂无数据。</p>';}
 function renderDaily(){
@@ -139,12 +148,12 @@ function renderDaily(){
  dayReport=M.dailyReport(DATA,state.day,filters());const D=dayReport,V=D.view,i=dates.indexOf(state.day);
  $('daily-date').innerHTML=dates.slice().reverse().map(d=>'<option value="'+d+'" '+(d===state.day?'selected':'')+'>'+d+'</option>').join('');
  $('previous-day').disabled=i<=0;$('next-day').disabled=i>=dates.length-1;$('latest-day').disabled=state.day===latest();
- $('daily-date-note').textContent=(state.day!==today()?'历史记录 · ':'')+dates.length+' 个记录日可查询';
+ $('daily-date-note').textContent=dates.length<2?((state.day!==today()?'历史记录 · ':'')+'目前只有 1 个记录日'):((state.day!==today()?'历史记录 · ':'')+dates.length+' 个记录日可查询');
  const stat=(n,t)=>'<div><span>'+t+'</span><b>'+n+'</b></div>';
  $('daily-stats').innerHTML=stat(state.contentType==='all'?V.observedSlots+' / '+V.expectedSlots:V.observedSlots,state.contentType==='all'?'展示位置':'匹配资源位')+stat(V.rows.length,state.contentType==='all'?'展示记录':contentLabel()+'记录')+stat(percent(V.shares.tencent),shareLabel())+(D.ready?stat(D.changedSlots.length,'有变化的位置'):'');
- $('daily-comparison').hidden=false;$('daily-comparison').classList.toggle('is-empty',!D.ready);
- $('daily-comparison').innerHTML=D.ready?'<b>'+D.previousDate+' → '+D.date+'</b><span>共同覆盖 '+D.comparableSlots.length+' 个位置 · 新出现 '+D.counts.seen+' 条 · 内容变化 '+D.counts.changed+' 条 · 本次未见 '+D.counts.not_seen+' 条</span><small>'+((D.unmatchedSlots.length?D.unmatchedSlots.length+' 个位置没有可比较的记录。':'')+(D.routeChanged?'页面范围不同，比较仅限共同位置。':''))+'</small>':'<b>'+(D.previousDate?'暂无可比较的位置':'暂无对比数据')+'</b><span>'+(D.previousDate?'与 '+D.previousDate+' 没有共同覆盖的位置。':'当前日期暂无更早记录。')+'</span>';
- $('only-changes').closest('label').hidden=!D.ready;
+ $('daily-comparison').hidden=dates.length<2;$('daily-comparison').classList.toggle('is-empty',!D.ready);
+ $('daily-comparison').innerHTML=dates.length<2?'':D.ready?'<b>'+D.previousDate+' → '+D.date+'</b><span>共同覆盖 '+D.comparableSlots.length+' 个位置 · 新出现 '+D.counts.seen+' 条 · 内容变化 '+D.counts.changed+' 条 · 本次未见 '+D.counts.not_seen+' 条</span><small>'+((D.unmatchedSlots.length?D.unmatchedSlots.length+' 个位置没有可比较的记录。':'')+(D.routeChanged?'页面范围不同，比较仅限共同位置。':''))+'</small>':'<b>'+(D.previousDate?'暂无可比较的位置':'暂无对比数据')+'</b><span>'+(D.previousDate?'与 '+D.previousDate+' 没有共同覆盖的位置。':'当前日期暂无更早记录。')+'</span>';
+ $('only-changes').closest('label').hidden=!D.ready||dates.length<2;
  document.querySelector('.day-toolbar').hidden=dates.length<2;
  $('only-changes').disabled=!D.ready;if(!D.ready)state.onlyChanges=false;$('only-changes').checked=state.onlyChanges;
  const ss=V.summaries.filter(s=>!state.onlyChanges||D.changedSlots.includes(s.slot.id));
@@ -156,7 +165,7 @@ function renderMaster(){
  const result=M.queryRecords(currentView.rows,{query:state.query,owner:state.owner,page:state.page});
  filteredRows=result.filtered;state.page=result.page;
  $('master-count').textContent=result.total+' 条匹配记录';$('export-range').disabled=!result.total;
- $('master-table').innerHTML=result.rows.length?'<table class="data-table master-table"><colgroup><col class="col-date"><col class="col-slot"><col class="col-product"><col class="col-owner"><col class="col-bucket"><col class="col-action"></colgroup><thead><tr><th>日期</th><th>平台／资源位</th><th>产品／内容</th><th>发行／运营方</th><th>归属</th><th>展示详情</th></tr></thead><tbody>'+result.rows.map((r,i)=>'<tr><td class="nowrap">'+r.sample_date+'<small>'+hm(r.observed_at)+'</small></td><td>'+esc(r.platform)+'<small>'+esc(r.slot_name)+'</small></td><td>'+gameName(r)+(r.object_name&&r.headline?'<small>'+esc(r.headline)+'</small>':'')+'</td><td>'+esc(r.ownership?.company||'待核实')+'</td><td class="'+M.bucketFor(r)+'-text">'+LABEL[M.bucketFor(r)]+'</td><td><button class="text-action" data-record-index="'+((result.page-1)*result.size+i)+'">查看记录</button></td></tr>').join('')+'</tbody></table>':'<p class="empty-state">没有匹配记录，请调整日期、归属或关键词。</p>';
+ $('master-table').innerHTML=result.rows.length?'<table class="data-table master-table"><colgroup><col class="col-date"><col class="col-slot"><col class="col-product"><col class="col-owner"><col class="col-bucket"><col class="col-action"></colgroup><thead><tr><th>日期</th><th>平台／资源位</th><th>产品／内容</th><th>发行／运营方</th><th>归属</th><th>展示详情</th></tr></thead><tbody>'+result.rows.map((r,i)=>'<tr><td class="nowrap" data-label="日期"><span>'+r.sample_date+'<small>'+hm(r.observed_at)+'</small></span></td><td data-label="平台／资源位"><span>'+esc(r.platform)+'<small>'+esc(r.slot_name)+'</small></span></td><td data-label="产品／内容"><span>'+gameName(r)+(r.object_name&&r.headline?'<small>'+esc(r.headline)+'</small>':'')+'</span></td><td data-label="发行／运营方"><span>'+esc(r.ownership?.company||'待核实')+'</span></td><td class="'+M.bucketFor(r)+'-text" data-label="归属"><span>'+LABEL[M.bucketFor(r)]+'</span></td><td data-label="展示详情"><span><button class="text-action" data-record-index="'+((result.page-1)*result.size+i)+'">查看记录</button></span></td></tr>').join('')+'</tbody></table>':'<p class="empty-state">没有匹配记录，请调整日期、归属或关键词。</p>';
  $('pagination').innerHTML=result.total?'<span>每页 '+result.size+' 条</span><button type="button" data-page="'+(result.page-1)+'" '+(result.page===1?'disabled':'')+'>上一页</button><span>'+result.page+' / '+result.pages+' 页</span><button type="button" data-page="'+(result.page+1)+'" '+(result.page===result.pages?'disabled':'')+'>下一页</button>'+(result.pages>2?'<label>跳到<input type="number" id="page-jump" min="1" max="'+result.pages+'" value="'+result.page+'" aria-label="跳转页码">页</label><button type="button" data-page-go>跳转</button>':''):'';
  syncUrl();
 }
@@ -180,7 +189,7 @@ function render({preserve=false}={}){
  const isSummary=state.view==='summary';
  if($('summary-panel'))$('summary-panel').hidden=!isSummary;
  if($('vendor-tabs'))$('vendor-tabs').hidden=isSummary;
- const filterRow=document.querySelector('.filter-row');if(filterRow)filterRow.hidden=isSummary;
+ const filterDock=document.getElementById('filter-dock');if(filterDock)filterDock.hidden=isSummary;
  const rangeContext=document.querySelector('.range-context');if(rangeContext)rangeContext.hidden=!hasData||state.view==='daily'||isSummary;
  document.querySelectorAll('[data-view]').forEach(a=>{if(a.dataset.view===state.view)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
  if(isSummary){
@@ -212,11 +221,11 @@ function route(){const h=location.hash.slice(1);state=M.readViewState(location.h
 function download(rows,filename){const blob=new Blob([M.masterCsv(rows)],{type:'text/csv;charset=utf-8;'}),href=URL.createObjectURL(blob),a=document.createElement('a');a.href=href;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(href),1000);}
 function openRecord(index){const r=filteredRows[index];if(!r)return;$('record-dialog-title').textContent=name(r);$('record-dialog-content').innerHTML='<p class="record-context">'+r.sample_date+' · '+esc(r.platform)+' · '+esc(r.slot_name)+'</p><p>'+esc(r.ownership?.company||'待核实')+' · '+LABEL[M.bucketFor(r)]+'</p>'+evidence(r,true);$('record-dialog').showModal();}
 function changeDataset(id,{renderNow=true}={}){
- if(id===state.dataset||!registry().some(d=>d.visible&&d.id===id))return;
+ if(id===state.dataset||!registry().some(d=>scopeListed(d)&&d.id===id))return;
  state.dataset=id;DATA=M.selectDataset(ALL_DATA,state.dataset);state.day=latest();state.pinDay=false;state.page=1;state.query='';state.owner='all';state.slotDates={};state.onlyChanges=false;state.start=firstDate();state.end=today();$('record-dialog').close();if(renderNow)render();
 }
 function openSummaryDataset(id,context={}){
- if(!registry().some(d=>d.visible&&d.id===id))return;
+ if(!registry().some(d=>scopeListed(d)&&d.id===id))return;
  changeDataset(id,{renderNow:false});
  state.contentType=['all','game','app'].includes(context.contentType)?context.contentType:'all';
  state.p=['all',...Object.keys(PLAT)].includes(context.platform)?context.platform:'all';
@@ -226,7 +235,7 @@ function openSummaryDataset(id,context={}){
  state.query='';state.owner='all';state.page=1;state.onlyChanges=false;state.slotDates={};
  activateView('overview');
 }
-$('dataset-select').addEventListener('change',e=>{if(registry().some(d=>d.visible&&d.id===e.target.value&&vendorOf(d)===vendorOf(DATA.dataset)))changeDataset(e.target.value);});
+$('dataset-select').addEventListener('change',e=>{if(registry().some(d=>scopeListed(d)&&d.id===e.target.value&&vendorOf(d)===vendorOf(DATA.dataset)))changeDataset(e.target.value);});
 $('date-from').value=state.start;$('date-to').value=state.end;$('date-from').max=today();$('date-to').max=today();
 $('content-type').addEventListener('change',e=>{state.contentType=e.target.value;state.page=1;state.onlyChanges=false;state.slotDates={};render();});
 if($('platform-select'))$('platform-select').addEventListener('change',e=>{if(!['all',...Object.keys(PLAT)].includes(e.target.value))return;state.p=e.target.value;state.page=1;render();});
@@ -247,7 +256,7 @@ document.addEventListener('toggle',e=>{if(!e.target.open)return;if(e.target.matc
 document.addEventListener('change',e=>{if(e.target.matches('[data-slot-date]')){state.slotDates[e.target.dataset.slotDate]=e.target.value;fillSlot(e.target.closest('.placement'));}});
 document.addEventListener('click',e=>{
  const game=e.target.closest('[data-game-name]');if(game){e.preventDefault();e.stopPropagation();window.ResourceWatchGameHistory?.open?.({data:ALL_DATA,game:game.dataset.gameName,trigger:game});return;}
- const vendor=e.target.closest('[data-vendor]');if(vendor){if(!vendor.disabled&&vendor.dataset.vendor!==vendorOf(DATA.dataset)){const scopes=registry().filter(d=>d.visible&&vendorOf(d)===vendor.dataset.vendor);const next=scopes.find(d=>d.id===ALL_DATA.default_dataset)||scopes[0];if(next)changeDataset(next.id);}return;}
+ const vendor=e.target.closest('[data-vendor]');if(vendor){if(!vendor.disabled&&vendor.dataset.vendor!==vendorOf(DATA.dataset)){const scopes=registry().filter(d=>scopeListed(d)&&vendorOf(d)===vendor.dataset.vendor);const next=scopes.find(d=>d.id===ALL_DATA.default_dataset)||scopes[0];if(next)changeDataset(next.id);}return;}
  const view=e.target.closest('[data-view]');if(view){e.preventDefault();activateView(view.dataset.view);return;}
  const page=e.target.closest('button[data-page]');if(page&&!page.disabled){state.page=Number(page.dataset.page);renderMaster();return;}
  if(e.target.closest('button[data-page-go]')){state.page=Number($('page-jump').value);renderMaster();return;}
@@ -261,5 +270,12 @@ async function refresh(){if(refreshing||document.hidden)return;refreshing=true;t
  if(manifest.version!==ALL_DATA.version){const r=await fetch('data/site.json?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('data');const next=await r.json();if(next.version!==manifest.version||next.schema_version!==1||!Array.isArray(next.slots)||!next.snapshots?.length||next.snapshots.some(s=>!Array.isArray(s.records)||!Array.isArray(s.covered_slots)))throw new Error('invalid update');const priorDates=DATA.snapshots.map(s=>s.date);ALL_DATA=next;DATA=M.selectDataset(ALL_DATA,state.dataset);state.day=M.selectionAfterUpdate(state.day,priorDates,DATA.snapshots.map(s=>s.date),{pinned:state.pinDay});render({preserve:true});$('meta').textContent+=' · 数据已更新';}
  else if(lastRenderToday!==today()){render({preserve:true});$('date-from').max=today();$('date-to').max=today();}
  }catch{$('meta').textContent='自动更新暂未成功，当前记录仍可查看。';}finally{refreshing=false;}}
+const filterDock=document.getElementById('filter-dock'),filterToggle=document.getElementById('filter-toggle');
+if(filterToggle&&filterDock){
+  filterToggle.addEventListener('click',()=>{
+    const open=filterDock.classList.toggle('is-open');
+    filterToggle.setAttribute('aria-expanded',String(open));
+  });
+}
 route();if(/^https?:$/.test(location.protocol)){setInterval(refresh,60000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});}
 })();

@@ -8,6 +8,7 @@
  function screenshot(value){return /^evidence\/\d{8}\/[a-f0-9]{20}\.(jpe?g|png)$/.test(value||'')?value:'';}
  function recordTime(value){return Number.isFinite(Date.parse(value))?new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(value)):'';}
  const messages={pending:'待接入',no_records:'暂无已发布记录',game_not_seen:'已有记录中未查到此游戏',no_matches_in_range:'所选日期内未查到此游戏',invalid_range:'开始日期不能晚于结束日期。'};
+ function vendorsWithData(vendors){return (vendors||[]).filter(v=>v.status!=='pending'&&v.status!=='no_records');}
  function renderGroup(group){
   if(group.status!=='matched')return '<section class="game-history-scope is-empty"><div class="game-history-scope-heading"><h4>'+esc(group.label)+'</h4><span>'+esc(messages[group.status]||'暂无匹配记录')+'</span></div></section>';
   const limit=active.limits[group.datasetId]||PAGE_SIZE,rows=group.records.slice(0,limit);
@@ -21,13 +22,18 @@
   const result=root.ResourceWatchModel.gameHistory(active.data,active.filters);
   $('game-history-title').textContent=active.filters.game;
   $('game-history-context').textContent=result.firstDate?'该游戏已有记录：'+result.firstDate+' — '+result.latestDate+'':'尚无该游戏的已发布展示记录。';
-  $('game-history-vendor').value=active.filters.vendor;
+  const listed=vendorsWithData(result.vendors);
+  const vendorSelect=$('game-history-vendor');
+  const wanted=listed.some(v=>v.id===active.filters.vendor)?active.filters.vendor:'all';
+  if(wanted!==active.filters.vendor)active.filters.vendor=wanted;
+  vendorSelect.innerHTML='<option value="all">全部厂商</option>'+listed.map(v=>'<option value="'+esc(v.id)+'">'+esc(v.name)+'</option>').join('');
+  vendorSelect.value=wanted;
   $('game-history-from').value=active.filters.start||'';
   $('game-history-to').value=active.filters.end||'';
   const status=$('game-history-status');
   status.classList.toggle('is-error',!result.validRange);
   status.textContent=!result.validRange?'开始日期不能晚于结束日期，请调整后查看。':result.totalRecords?'找到 '+result.totalRecords+' 条展示记录，涉及 '+result.totalVendorsWithMatches+' 家厂商。':'当前条件下没有匹配记录。';
-  $('game-history-results').innerHTML=result.validRange?result.vendors.filter(v=>v.included).map(v=>'<section class="game-history-vendor" data-history-vendor="'+esc(v.id)+'"><div class="game-history-vendor-heading"><h3>'+esc(v.name)+'</h3><span>'+(v.status==='matched'?v.totalRecords+' 条展示':esc(messages[v.status]||'暂无匹配记录'))+'</span></div>'+v.groups.map(renderGroup).join('')+'</section>').join(''):'';
+  $('game-history-results').innerHTML=result.validRange?vendorsWithData(result.vendors).filter(v=>v.included).map(v=>'<section class="game-history-vendor" data-history-vendor="'+esc(v.id)+'"><div class="game-history-vendor-heading"><h3>'+esc(v.name)+'</h3><span>'+(v.status==='matched'?v.totalRecords+' 条展示':esc(messages[v.status]||'暂无匹配记录'))+'</span></div>'+v.groups.filter(g=>g.status!=='pending'&&g.status!=='no_records').map(renderGroup).join('')+'</section>').join(''):'';
  }
  function open({data,game,trigger}={}){
   if(!data||!String(game||'').trim())return;
@@ -39,6 +45,7 @@
   $('close-game-history').focus({preventScroll:true});
  }
  function init(){
+  if(!root.document?.getElementById)return;
   const dialog=$('game-history-dialog');if(!dialog)return;
   $('close-game-history').addEventListener('click',()=>dialog.close());
   dialog.addEventListener('close',()=>{const trigger=active?.trigger;if(trigger?.isConnected)trigger.focus({preventScroll:true});});
@@ -53,6 +60,6 @@
    active.limits[id]=(active.limits[id]||PAGE_SIZE)+PAGE_SIZE;render();dialog.scrollTop=y;
   });
  }
- root.ResourceWatchGameHistory={open};
+ root.ResourceWatchGameHistory={open,vendorsWithData};
  init();
 })(globalThis);

@@ -3,16 +3,17 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow"><meta name="color-scheme" content="light"><meta name="theme-color" content="#ffffff">
-<title>资源观察台 · 多厂商资源分布</title>
-<link rel="preload" href="assets/fonts/tencent-sans-w7-ui.woff2?v=20261114" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="assets/v2.css?v=20261114-webfont">
-<script src="data/bootstrap.js"></script><script src="assets/view-model.js" defer></script><script src="assets/chart.umd.js" defer></script><script src="assets/summary.js?v=20261114-no-share" defer></script><script src="assets/game-history.js?v=20261114-no-share" defer></script><script src="assets/v2.js?v=20261114-no-share" defer></script>
+<title>资源观察台 · 多厂商</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="preload" href="assets/fonts/tencent-sans-w7-ui.woff2?v=20261115" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/v2.css?v=20261115">
+<script src="data/bootstrap.js"></script><script src="assets/view-model.js?v=20261115" defer></script><script src="assets/summary.js?v=20261115" defer></script><script src="assets/game-history.js?v=20261115" defer></script><script src="assets/v2.js?v=20261115" defer></script>
 </head>
 <body>
 <header class="top"><div class="wrap">
-<a class="brand" href="#summary" data-view="summary"><svg viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#3976de"/><path d="M7 19V14M14 19V8M21 19V11" stroke="white" stroke-width="3"/></svg><span>资源观察台</span></a>
+<a class="brand" href="#summary" data-view="summary"><svg viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#0052d9"/><path d="M7 19V14M14 19V8M21 19V11" stroke="white" stroke-width="3"/></svg><span>资源观察台 · 多厂商</span></a>
 <nav class="top-nav" aria-label="页面导航"><a href="#summary" data-view="summary" aria-current="page">厂商汇总</a><a href="#overview" data-view="overview">资源总览</a><a href="#daily" data-view="daily">每日动态</a><a href="#query" data-view="query">历史查询</a></nav>
-<span class="site-caption">多厂商资源观察</span>
 </div></header>
 <main class="wrap">
 <section class="page-heading" aria-label="页面概览与更新状态">
@@ -21,13 +22,16 @@
 </section>
 <section id="summary-panel" aria-label="五厂商汇总" hidden></section>
 <nav class="vendor-tabs" id="vendor-tabs" aria-label="厂商"></nav>
-<div class="filter-row">
-<div class="scopebar" aria-label="数据范围"><label>数据范围<select id="dataset-select" aria-label="数据范围"></select></label><label><span class="label-with-note">内容范围</span><select id="content-type" aria-label="内容范围"><option value="all">全部内容</option><option value="game">游戏</option><option value="app">应用</option></select></label><label>平台范围<select id="platform-select"><option value="all">全部平台</option><option value="gamecenter">游戏中心</option><option value="appgallery">应用市场</option></select></label></div>
-<form class="filterbar" id="filters" aria-label="筛选统计日期"><label id="range-field">统计日期<select id="range-select"><option value="latest" selected>最新数据</option><option value="today">今天</option><option value="7">最近 7 天</option><option value="30">最近 30 天</option><option value="90">最近 90 天</option><option value="all">全部记录</option><option value="custom">自选日期</option></select></label><div class="custom-dates" id="custom-dates" hidden><label>从<input type="date" id="date-from"></label><label>到<input type="date" id="date-to"></label><button type="submit" class="action">应用</button></div></form>
+<div class="filter-dock" id="filter-dock">
+<button type="button" class="filter-toggle" id="filter-toggle" aria-expanded="false" aria-controls="filter-panel">筛选</button>
+<div class="filter-row" id="filter-panel">
+<div class="scopebar" aria-label="数据范围"><label>数据范围<select id="dataset-select" aria-label="数据范围"></select></label><label><span class="label-with-note">内容范围</span><select id="content-type" aria-label="内容范围"><option value="all" selected>全部内容</option><option value="game">游戏</option><option value="app">应用</option></select></label><label>平台范围<select id="platform-select"><option value="all">全部平台</option><option value="gamecenter">游戏中心</option><option value="appgallery">应用市场</option></select></label></div>
+<form class="filterbar" id="filters" aria-label="筛选统计日期"><label id="range-field">统计日期<select id="range-select"><option value="latest" selected>最新日期</option><option value="today">今天</option><option value="7">最近 7 天</option><option value="30">最近 30 天</option><option value="90">最近 90 天</option><option value="all">全部记录</option><option value="custom">自选日期</option></select></label><div class="custom-dates" id="custom-dates" hidden><label>从<input type="date" id="date-from"></label><label>到<input type="date" id="date-to"></label><button type="submit" class="action-secondary">应用</button></div></form>
 <label id="daily-date-field" hidden>查看日期<select id="daily-date"></select></label>
 </div>
-<section id="dataset-empty" class="dataset-empty" hidden><h2 id="dataset-empty-title"></h2><p>暂无已发布数据。更新后可在这里查看资源分布、每日动态和历史记录。</p></section>
-<section class="hero" id="hero" aria-label="所选范围数据摘要"><div class="summary-metrics"><div class="hero-share"><div class="label-with-note"><span class="share-kicker" id="share-kicker">腾讯资源占比</span></div><div class="big-share" id="hero-share">—</div><div id="hero-composition"></div></div><div class="stats" id="stats"></div></div></section>
+</div>
+<section id="dataset-empty" class="dataset-empty" hidden><h2 id="dataset-empty-title"></h2><p>暂无已发布数据，更新后可在这里查看。</p></section>
+<section class="hero" id="hero" aria-label="所选范围数据摘要"><div class="summary-metrics"><div class="hero-share"><div class="label-with-note"><span class="share-kicker" id="share-kicker">腾讯资源占比</span></div><div class="big-share" id="hero-share">—</div><div id="hero-composition"></div><p class="scope-caption" id="hero-scope"></p></div><div class="stats" id="stats"></div></div></section>
 <p id="range-note" class="range-context" role="status"></p>
 <div id="overview-panel">
 <section class="sec" id="placements"><div class="sh"><div class="title-with-note"><h2>资源位分布</h2></div><div id="overview-priority-slot"><div id="priority-controls" class="priority-filter" role="group" aria-label="位置级别"><button type="button" data-pr="all" aria-pressed="true">全部位置</button><button type="button" data-pr="focus" aria-pressed="false">重点位置</button><button type="button" data-pr="other" aria-pressed="false">其他位置</button></div></div></div>
@@ -35,14 +39,14 @@
 <section class="sec" id="analysis"><div class="sh"><div class="title-with-note"><h2>重点发现</h2></div><a class="text-action" href="#daily" data-view="daily">查看每日动态 →</a></div><div id="insights" class="insights"></div><p class="quality-note" id="quality-note"></p><details class="timeline-panel" id="trend-details"><summary><span>每日占比</span></summary><div id="timeline"></div></details></section>
 </div>
 <section class="sec view-panel" id="daily-panel" hidden aria-labelledby="daily-title">
-<div class="sh"><div class="title-with-note"><h2 id="daily-title">当天概览</h2></div><button id="export-day" class="action" type="button">下载当日表格</button><div id="daily-priority-slot"></div></div>
+<div class="sh"><div class="title-with-note"><h2 id="daily-title">当天概览</h2></div><button id="export-day" class="action-secondary" type="button">下载当日表格</button><div id="daily-priority-slot"></div></div>
 <div class="day-toolbar" hidden><div class="day-step"><button type="button" id="previous-day">上一条日期</button><button type="button" id="next-day">下一条日期</button><button type="button" id="latest-day">最新日期</button></div></div>
 <p id="daily-date-note" class="method-inline"></p><div id="daily-stats" class="daily-stats"></div>
 <div id="daily-comparison" class="daily-comparison" role="status"></div>
 <div class="day-list-heading"><div class="title-with-note"><h3>当天展示内容</h3></div><label><input type="checkbox" id="only-changes">只看有变化的位置</label></div>
 <div id="daily-placements"></div>
 </section>
-<section class="sec view-panel" id="query-panel" hidden aria-labelledby="query-title"><div class="sh"><div class="title-with-note"><h2 id="query-title">查询结果</h2></div><span class="sub" id="master-count"></span><button id="export-range" class="action" type="button">下载查询结果</button></div>
+<section class="sec view-panel" id="query-panel" hidden aria-labelledby="query-title"><div class="sh"><div class="title-with-note"><h2 id="query-title">查询结果</h2></div><span class="sub" id="master-count"></span><button id="export-range" class="action-secondary" type="button">下载查询结果</button></div>
 
 <div id="query-priority-slot"></div><div class="query-controls"><label class="search-label">搜索记录<input type="search" id="search" placeholder="日期、游戏、公司或资源位" autocomplete="off"></label><label>归属<select id="owner-filter"><option value="all">全部归属</option><option value="tencent">腾讯</option><option value="other">其他厂商</option><option value="unknown">待核实</option><option value="topic">平台活动／专题</option></select></label></div><div id="master-table" class="table-scroll" tabindex="0" role="region" aria-label="每日资源明细总表"></div><div id="pagination" class="pagination"></div>
 </section>
@@ -55,7 +59,7 @@
 <dialog id="game-history-dialog" aria-labelledby="game-history-title">
 <div class="dialog-heading game-history-heading"><div><p class="game-history-kicker">各厂商历史展示</p><div class="title-with-note"><h2 id="game-history-title"></h2></div></div><button type="button" id="close-game-history" autofocus>关闭</button></div>
 <p id="game-history-context" class="game-history-context"></p>
-<form id="game-history-filters" class="game-history-filters" aria-label="筛选游戏历史展示"><label>厂商<select id="game-history-vendor"><option value="all">全部厂商</option><option value="huawei">华为</option><option value="oppo">OPPO</option><option value="vivo">vivo</option><option value="xiaomi">小米</option><option value="honor">荣耀</option></select></label><label>开始日期<input id="game-history-from" type="date"></label><label>结束日期<input id="game-history-to" type="date"></label><button type="button" id="game-history-reset" class="share-button">全部历史</button></form>
+<form id="game-history-filters" class="game-history-filters" aria-label="筛选游戏历史展示"><label>厂商<select id="game-history-vendor"><option value="all">全部厂商</option></select></label><label>开始日期<input id="game-history-from" type="date"></label><label>结束日期<input id="game-history-to" type="date"></label><button type="button" id="game-history-reset" class="share-button">全部历史</button></form>
 <p id="game-history-status" role="status" aria-live="polite"></p><div id="game-history-results"></div>
 
 </dialog>

@@ -116,7 +116,7 @@
     const ranked=view.summaries.filter(s=>s.sampleDays&&s.shares.tencent>0).sort((a,b)=>b.shares.tencent-a.shares.tencent||a.slot.order-b.slot.order);
     const results=[];
     if(ranked.length){const first=ranked[0],ties=ranked.filter(x=>Math.abs(x.shares.tencent-first.shares.tencent)<1e-10);
-      results.push({title:'腾讯占比较高的位置',text:ties.slice(0,3).map(x=>x.slot.platform+' '+x.slot.name).join('、')+(ties.length>3?`等 ${ties.length} 个位置`:'')+`，区间日均均为 ${(first.shares.tencent*100).toFixed(1)}%。`});
+      results.push({title:'腾讯占比较高的位置',text:ties.slice(0,3).map(x=>x.slot.platform+' '+x.slot.name).join('、')+(ties.length>3?`等 ${ties.length} 个位置`:'')+`，${view.start===view.end?'当天':'区间日均'}均为 ${(first.shares.tencent*100).toFixed(1)}%。`});
     }else results.push({title:'当前记录中未出现腾讯产品',text:'当前日期范围内没有相关展示记录。'});
     const companyTotals={};
     view.summaries.forEach(s=>s.days.forEach(d=>d.rows.filter(r=>bucketFor(r)==='other').forEach(r=>{const c=r.ownership.company;companyTotals[c]=(companyTotals[c]||0)+1/d.count;})));

@@ -73,13 +73,13 @@ function updateStatus(){
   const stamp=snapshots.map(s=>s.completed_at||s.date).filter(t=>Number.isFinite(Date.parse(t))).sort((a,b)=>Date.parse(a)-Date.parse(b)).at(-1);
   const displayTime=stamp?.includes('T')?new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(stamp)):stamp;
   $('scope-status').textContent=displayTime?'最近更新 '+displayTime+' · 北京时间':'暂无已发布数据';
-  $('update-mode').textContent=displayTime?'按需更新 · 已核对':'有新记录后更新';
+  $('update-mode').textContent=displayTime?'按需更新 · 记录已更新':'有新记录后更新';
   $('stale').hidden=true;return;
  }
  const last=DATA.snapshots.at(-1),stamp=last?.completed_at;
  const displayTime=Number.isFinite(Date.parse(stamp))?new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(stamp)):last?.date;
  $('scope-status').textContent=last?'数据截至 '+displayTime+' · 北京时间':'暂无已发布数据';
- $('update-mode').textContent=last?(DATA.sampling?.update_mode==='on_demand'?'按需更新 · 已核对':'已核对'):'有新记录后更新';
+ $('update-mode').textContent=last?(DATA.sampling?.update_mode==='on_demand'?'按需更新 · 记录已更新':'记录已更新'):'有新记录后更新';
 }
 function range(){return state.range==='latest'?{start:latest(),end:latest()}:M.dateRange(state.range,today(),firstDate(),state.start,state.end);}
 function links(sources){return(sources||[]).map((s,i)=>'<a href="'+esc(url(s.url))+'" target="_blank" rel="noopener">'+esc(s.title||'官方依据')+(sources.length>1?' '+(i+1):'')+' ↗</a>').join(' · ');}
@@ -106,7 +106,9 @@ function groups(summaries,mode){
  const empty='<p class="empty-state">当前范围没有匹配内容，请调整日期、平台或内容范围。</p>';
  if(mode==='overview'){
   const ss=summaries.filter(s=>(state.p==='all'||state.p===s.slot.app)&&(state.contentType==='all'||s.sampleDays));
-  return ss.length?'<div class="placement-table"><div class="placement-table-head" aria-hidden="true"><span>资源位置</span><span>'+(currentView.start===currentView.end?'展示内容':'期间出现内容')+'</span><span>腾讯资源占比</span><span></span></div><div class="placement-list">'+ss.map(s=>placement(s,mode)).join('')+'</div></div>':empty;
+  const rank=s=>s.slot.priority==='focus'?0:1,ordered=ss.filter(s=>s.sampleDays).sort((a,b)=>rank(a)-rank(b)||b.shares.tencent-a.shares.tencent||a.slot.order-b.slot.order);
+  const blank=ordered.length?ss.filter(s=>!s.sampleDays):[],shown=ordered.length?ordered:ss;
+  return ss.length?'<div class="placement-table"><div class="placement-table-head" aria-hidden="true"><span>资源位置</span><span>'+(currentView.start===currentView.end?'展示内容':'期间出现内容')+'</span><span>腾讯资源占比</span><span></span></div><div class="placement-list">'+shown.map(s=>placement(s,mode)).join('')+'</div>'+(blank.length?'<details class="timeline-panel placement-blank"><summary><span>当前范围没有内容的 '+blank.length+' 个位置</span></summary><div class="placement-list">'+blank.map(s=>placement(s,mode)).join('')+'</div></details>':'')+'</div>':empty;
  }
  return Object.keys(PLAT).filter(p=>state.p==='all'||state.p===p).map(p=>{const ss=summaries.filter(s=>s.slot.app===p&&(state.contentType==='all'||s.sampleDays));if(!ss.length)return '';return '<div class="placement-group '+(p==='gamecenter'?'gc':'ag')+'"><h3 class="ptag">'+PLAT[p]+'<small>'+(state.contentType==='all'?ss.filter(s=>s.sampleDays).length+' / '+ss.length+' 个资源位':ss.length+' 个位置有'+contentLabel()+'内容')+'</small></h3><div class="placement-list">'+ss.map(s=>placement(s,mode)).join('')+'</div></div>';}).join('')||empty;
 }

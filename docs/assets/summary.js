@@ -68,6 +68,9 @@
       const view=row.hasData?M.aggregate(row.scopeData,{start,end,contentType:state.contentType}):null;
       row.slots=view?view.observedSlots:null;
       row.share=view?.shares.tencent??null;
+      const focus=row.hasData?M.aggregate(row.scopeData,{start,end,contentType:state.contentType,priority:'focus'}):null;
+      row.slotDays=view?.slotDays??0;row.focusShare=focus?.shares.tencent??null;row.focusDays=focus?.slotDays??0;
+      row.unknownShare=view?.shares.unknown??null;row.unknownCount=view?.unknownProducts.length??0;
       row.recordCount=view?.rows.length??null;
       row.matchedDates=view?.dates||[];
       const timeline=new Map((view?.timeline||[]).map(day=>[day.date,day]));
@@ -131,7 +134,7 @@
     const countMode=view.state.metric==='slots';
     return '<details class="summary-data-details"><summary>查看逐日数据</summary><div class="summary-table-wrap" tabindex="0"><table class="summary-table summary-daily-table"><colgroup><col class="col-date"><col span="5"></colgroup><caption>'+esc(countMode?'有记录资源位数（当前内容筛选）':'腾讯资源占比')+'</caption><thead><tr><th scope="col">日期</th>'+view.rows.map(row=>'<th scope="col">'+row.name+'</th>').join('')+'</tr></thead><tbody>'+view.dates.map((date,index)=>'<tr><th scope="row">'+date+'</th>'+view.rows.map(row=>'<td>'+(countMode?(row.points[index].slots??'—'):percent(row.points[index].share))+'</td>').join('')+'</tr>').join('')+'</tbody></table></div></details>';
   }
-  function render({data,onOpenDataset}={}) {
+  function render({data,onOpenDataset,onOpenHistory}={}) {
     const panel=root.document?.getElementById('summary-panel');
     if(!panel||!data)return;
     const view=buildView(data,uiState);uiState=view.state;
@@ -142,8 +145,8 @@
     const scopeText=CONTENT[view.state.contentType]+' · '+RANGES[view.state.range];
     const readyRows=view.rows.filter(row=>row.hasData);
     const pendingRows=view.rows.filter(row=>!row.hasData);
-    const vendorRow=row=>'<tr class="'+(row.hasData?'is-ready':'is-pending')+'"><th scope="row" data-label="厂商"><span class="summary-vendor-name"><i style="background:'+row.color+'" aria-hidden="true"></i>'+row.name+'</span></th><td data-label="腾讯资源占比">'+percent(row.share)+(row.hasData&&!row.recordCount?'<small class="summary-muted">当前范围无匹配内容</small>':'')+'</td><td data-label="资源位">'+(row.slots??'—')+'</td><td data-label="范围">'+scopeControl(row)+'</td><td data-label="最新记录">'+(row.latestDate||'—')+'</td><td data-label="详情"><button type="button" class="summary-open" data-summary-open="'+esc(row.selected?.id||'')+'" '+(row.canOpen?'':'disabled')+'>'+(row.canOpen?'进入详情':row.selected?'暂无记录':'待接入')+'</button></td></tr>';
-    const vendorTable=rows=>'<div class="summary-table-wrap" tabindex="0" role="region" aria-label="五厂商资源概览"><table class="summary-table summary-comparison-table"><colgroup><col class="col-vendor"><col class="col-share"><col class="col-count"><col class="col-scope"><col class="col-date"><col class="col-action"></colgroup><thead><tr><th scope="col">厂商</th><th scope="col">腾讯资源占比</th><th scope="col">资源位</th><th scope="col">范围</th><th scope="col">最新记录</th><th scope="col">详情</th></tr></thead><tbody>'+rows.map(vendorRow).join('')+'</tbody></table></div>';
+    const vendorRow=row=>'<tr class="'+(row.hasData?'is-ready':'is-pending')+'"><th scope="row" data-label="厂商"><span class="summary-vendor-name"><i style="background:'+row.color+'" aria-hidden="true"></i>'+row.name+'</span></th><td data-label="全部位置 · 腾讯">'+percent(row.share)+'<small class="summary-muted">'+(row.slotDays?row.slotDays+' 个资源位日':'暂无数据')+'</small></td><td data-label="重点位置 · 腾讯">'+percent(row.focusShare)+'<small class="summary-muted">'+(row.focusDays?row.focusDays+' 个资源位日':'暂无数据')+'</small></td><td data-label="待核实占比">'+percent(row.unknownShare)+'<small class="summary-muted">'+(row.unknownCount?row.unknownCount+' 项名称待核实':'')+'</small></td><td data-label="资源位">'+(row.slots??'—')+'</td><td data-label="范围">'+scopeControl(row)+'</td><td data-label="最新记录">'+(row.latestDate||'—')+'</td><td data-label="详情"><button type="button" class="summary-open" data-summary-open="'+esc(row.selected?.id||'')+'" '+(row.canOpen?'':'disabled')+'>'+(row.canOpen?'进入详情':row.selected?'暂无记录':'待接入')+'</button>'+(row.canOpen?'<button type="button" class="summary-history" data-summary-history="'+esc(row.selected.id)+'">查历史</button>':'')+'</td></tr>';
+    const vendorTable=rows=>'<div class="summary-table-wrap" tabindex="0" role="region" aria-label="五厂商资源概览"><table class="summary-table summary-comparison-table"><colgroup><col class="col-vendor"><col class="col-share"><col><col><col class="col-count"><col class="col-scope"><col class="col-date"><col class="col-action"></colgroup><thead><tr><th scope="col">厂商</th><th scope="col">全部位置 · 腾讯</th><th scope="col">重点位置 · 腾讯</th><th scope="col">待核实占比</th><th scope="col">资源位</th><th scope="col">范围</th><th scope="col">最新记录</th><th scope="col">详情</th></tr></thead><tbody>'+rows.map(vendorRow).join('')+'</tbody></table></div>';
     const toolbar='<div class="summary-toolbar" id="summary-toolbar"><dl class="summary-stats" aria-label="汇总数据">'+
       stat('已覆盖厂商',view.covered+' <small>/ '+view.totalVendors+'</small>')+
       stat('资源位总数',view.totalSlots??'—')+'</dl>'+
@@ -152,7 +155,7 @@
       '<div class="summary-controls" id="summary-controls"><label>统计日期<select id="summary-range">'+['latest','7','30','90','all'].map(value=>'<option value="'+value+'" '+(view.state.range===value?'selected':'')+'>'+RANGES[value]+'</option>').join('')+'</select></label>'+
       '<label>内容范围<select id="summary-content">'+Object.entries(CONTENT).map(([value,label])=>'<option value="'+value+'" '+(view.state.contentType===value?'selected':'')+'>'+label+'</option>').join('')+'</select></label></div></div>';
     const vendors='<section class="summary-vendors" aria-labelledby="summary-vendors-title"><div class="summary-section-head"><div class="title-with-note"><h2 id="summary-vendors-title">厂商对比</h2></div><p class="summary-sub">'+dateText+' · '+scopeText+'</p></div>'+
-      vendorTable(readyRows||[])+
+      '<p class="summary-method-visible">占比按有记录的资源位及日期等权平均，并非曝光量；待核实内容独立计算。</p>'+vendorTable(readyRows||[])+
       (pendingRows.length?'<details class="summary-pending"><summary>待接入（'+pendingRows.length+'）<span class="pending-hint"></span></summary>'+vendorTable(pendingRows)+'</details>':'')+
       '</section>';
     const trend=view.hasTrend?'<section class="summary-trend" aria-labelledby="summary-trend-title"><div class="summary-section-head"><div class="title-with-note"><h2 id="summary-trend-title">'+(countMode?'各厂商资源位数量':'各厂商腾讯资源占比')+'</h2></div>'+
@@ -163,17 +166,18 @@
       dailyTable(view)+'</section>':'';
     panel.innerHTML=toolbar+vendors+trend;
     const seq=++renderSeq;
-    panel.querySelector('#summary-range').addEventListener('change',event=>{uiState.range=event.target.value;render({data,onOpenDataset});});
-    panel.querySelector('#summary-content').addEventListener('change',event=>{uiState.contentType=event.target.value;render({data,onOpenDataset});});
-    panel.querySelector('[data-summary-game]').addEventListener('click',event=>{event.stopPropagation();uiState.contentType=view.state.contentType==='game'?'all':'game';render({data,onOpenDataset});});
+    panel.querySelector('#summary-range').addEventListener('change',event=>{uiState.range=event.target.value;render({data,onOpenDataset,onOpenHistory});});
+    panel.querySelector('#summary-content').addEventListener('change',event=>{uiState.contentType=event.target.value;render({data,onOpenDataset,onOpenHistory});});
+    panel.querySelector('[data-summary-game]').addEventListener('click',event=>{event.stopPropagation();uiState.contentType=view.state.contentType==='game'?'all':'game';render({data,onOpenDataset,onOpenHistory});});
     panel.querySelector('#summary-filter-toggle').addEventListener('click',()=>{
       const bar=panel.querySelector('#summary-toolbar');
       const open=bar.classList.toggle('is-open');
       panel.querySelector('#summary-filter-toggle').setAttribute('aria-expanded',String(open));
     });
-    panel.querySelectorAll('[data-summary-metric]').forEach(button=>button.addEventListener('click',event=>{event.stopPropagation();uiState.metric=button.dataset.summaryMetric;render({data,onOpenDataset});}));
-    panel.querySelectorAll('[data-summary-scope]').forEach(select=>select.addEventListener('change',event=>{event.stopPropagation();uiState.scopes[select.dataset.summaryScope]=select.value;render({data,onOpenDataset});}));
+    panel.querySelectorAll('[data-summary-metric]').forEach(button=>button.addEventListener('click',event=>{event.stopPropagation();uiState.metric=button.dataset.summaryMetric;render({data,onOpenDataset,onOpenHistory});}));
+    panel.querySelectorAll('[data-summary-scope]').forEach(select=>select.addEventListener('change',event=>{event.stopPropagation();uiState.scopes[select.dataset.summaryScope]=select.value;render({data,onOpenDataset,onOpenHistory});}));
     panel.querySelectorAll('[data-summary-open]').forEach(button=>button.addEventListener('click',event=>{event.stopPropagation();if(!button.disabled&&typeof onOpenDataset==='function')onOpenDataset(button.dataset.summaryOpen,{contentType:view.state.contentType,range:{start:view.start,end:view.end},platform:'all',priority:'all'});}));
+    panel.querySelectorAll('[data-summary-history]').forEach(button=>button.addEventListener('click',()=>{if(typeof onOpenHistory==='function')onOpenHistory(button.dataset.summaryHistory);}));
     if(view.hasTrend){
       const status=panel.querySelector('#summary-chart-status');
       loadChartLibrary().then(()=>{

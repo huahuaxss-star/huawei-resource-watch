@@ -16,6 +16,21 @@ const gameName=r=>isGame(r)?'<button type="button" class="game-history-link" dat
 const hm=t=>Number.isFinite(Date.parse(t))?new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(t)):'';
 const url=u=>/^https:\/\//.test(u||'')?u:'#';
 const shot=u=>/^evidence\/\d{8}\/[a-f0-9]{20}\.(jpe?g|png)$/.test(u||'')?u:'';
+// Evidence opens within the current page, including inside the Sinan iframe.
+(function(){
+ const viewer=$('evidence-viewer'),image=$('evidence-viewer-image'),error=$('evidence-viewer-error');let trigger=null;
+ if(!viewer||!image||!error)return;
+ document.addEventListener('click',event=>{
+  const link=event.target.closest('a[data-evidence-viewer]');if(!link)return;
+  const src=shot(link.getAttribute('href'));if(!src)return;
+  event.preventDefault();trigger=link;error.hidden=true;image.hidden=false;image.src=src;
+  image.alt=link.querySelector('img')?.alt||'资源位展示截图';if(!viewer.open)viewer.showModal();$('evidence-viewer-close').focus({preventScroll:true});
+ });
+ image.addEventListener('error',()=>{error.hidden=false;image.hidden=true;});
+ $('evidence-viewer-close').addEventListener('click',()=>viewer.close());
+ viewer.addEventListener('click',event=>{if(event.target===viewer)viewer.close();});
+ viewer.addEventListener('close',()=>{image.removeAttribute('src');if(trigger?.isConnected)trigger.focus({preventScroll:true});});
+})();
 const registry=()=>ALL_DATA.datasets||[DATA?.dataset];
 const vendorOf=d=>d.vendor||d.id.split('-')[0];
 const isDual=d=>d.edition==='dual'||d.edition_name==='双框';
@@ -87,7 +102,7 @@ function bar(shares){return '<div class="sharebar'+shareTone(shares.tencent)+'" 
 function numbers(shares){return '<div class="share-numbers">'+M.BUCKETS.filter(k=>k==='tencent'||k==='other'||shares[k]>0).map(k=>'<span class="'+k+'-text">'+LABEL[k]+' <b class="'+shareTone(shares[k]).trim()+'">'+percent(shares[k])+'</b></span>').join('')+'</div>';}
 function evidence(r,open=false){const o=r.ownership||{},src=shot(r.screenshot);return '<details class="more" '+(open?'open':'')+'><summary>详情与截图</summary><div class="ev'+(src?'':' noimg')+'"><dl class="kv">'+[
  ['页面模块',r.module],['产品',r.object_name],['主标题',r.headline],['文案',r.copy],['补充文案',r.app_copy],['活动时间',r.period_text],['页面名次',r.rank],['公开主体',o.operator],['归属备注',o.note],['记录时间',r.observed_at]
- ].filter(x=>x[1]).map(([k,v])=>'<dt>'+k+'</dt><dd>'+(k==='产品'?gameName(r):esc(v))+'</dd>').join('')+(o.sources?.length?'<dt>归属依据</dt><dd>'+links(o.sources)+'</dd>':'')+'</dl>'+(src?'<a class="shot" href="'+esc(src)+'" target="_blank" rel="noopener"><img src="'+esc(src)+'" loading="lazy" alt="'+esc(r.platform+' '+r.slot_name+' '+r.sample_date+'截图')+'"><span>查看完整截图 ↗</span></a>':'')+'</div></details>';}
+ ].filter(x=>x[1]).map(([k,v])=>'<dt>'+k+'</dt><dd>'+(k==='产品'?gameName(r):esc(v))+'</dd>').join('')+(o.sources?.length?'<dt>归属依据</dt><dd>'+links(o.sources)+'</dd>':'')+'</dl>'+(src?'<a class="shot" href="'+esc(src)+'" data-evidence-viewer><img src="'+esc(src)+'" loading="lazy" alt="'+esc(r.platform+' '+r.slot_name+' '+r.sample_date+'截图')+'"><span>查看完整截图</span></a>':'')+'</div></details>';}
 function product(r,status){return '<article class="daily-product"><div><strong>'+gameName(r)+'</strong><span class="owner-badge '+M.bucketFor(r)+'-text">'+esc(r.ownership?.company||LABEL[M.bucketFor(r)])+'</span>'+(status&&status!=='same'?'<span class="change-label '+status+'">'+STATUS[status]+'</span>':'')+'</div>'+(r.object_name&&r.headline?'<p>'+esc(r.headline)+'</p>':'')+evidence(r)+'</article>';}
 function placement(s,mode='overview'){
  const slot=s.slot,missing=!s.sampleDays,isDay=mode==='daily';
@@ -97,8 +112,9 @@ function placement(s,mode='overview'){
   const summary=products.slice(0,2).map(gameName).join('、')+(products.length>2?' 等 '+products.length+' '+unit:'');
   const singleDate=currentView.start===currentView.end;
   const context=missing?(singleDate?'当天暂无内容':'期间暂无内容'):singleDate?currentView.start:'有记录 '+s.sampleDays+' 天';
+  const volume=missing?'':singleDate&&s.days.length===1?' · 腾讯 '+s.days[0].counts.tencent+'/'+s.days[0].count+' 条':' · 共 '+s.records+' 条记录';
   const share=missing?'<span class="empty-line">—</span>':'<span class="placement-percent'+shareTone(s.shares.tencent)+'">'+percent(s.shares.tencent)+'</span><span class="mini-sharebar'+shareTone(s.shares.tencent)+'" role="img" aria-label="腾讯资源占比 '+percent(s.shares.tencent)+'"><span class="share-tencent" style="width:'+s.shares.tencent*100+'%"></span></span>';
-  return '<details class="placement overview-placement" id="slot-'+esc(slot.id)+'" data-slot="'+esc(slot.id)+'" data-mode="overview"><summary><div class="place-name"><span class="place-title">'+esc(slot.name)+'</span><small>'+esc(slot.platform||PLAT[slot.app]||slot.app)+'</small></div><div class="place-products"><span>'+(summary||'暂无记录')+'</span><small>'+esc(context)+'</small></div><div class="place-shares">'+share+'</div><span class="open-label">查看内容 <span class="ar">›</span></span></summary><div class="slot-body"></div></details>';
+  return '<details class="placement overview-placement" id="slot-'+esc(slot.id)+'" data-slot="'+esc(slot.id)+'" data-mode="overview"><summary><div class="place-name"><span class="place-title">'+esc(slot.name)+'</span><small>'+esc(slot.platform||PLAT[slot.app]||slot.app)+'</small></div><div class="place-products"><span>'+(summary||'暂无记录')+'</span><small>'+esc(context+volume)+'</small></div><div class="place-shares">'+share+'</div><span class="open-label">查看内容 <span class="ar">›</span></span></summary><div class="slot-body"></div></details>';
  }
  return '<details class="placement '+(slot.app==='gamecenter'?'gc':'ag')+'" id="'+(isDay?'day-slot-':'slot-')+esc(slot.id)+'" data-slot="'+esc(slot.id)+'" data-mode="'+mode+'"><summary><div class="place-name"><span class="priority-tag">'+(slot.priority==='focus'?'重点':'其他')+'</span><b>'+esc(slot.name)+'</b><small>'+(isDay?(missing?'当天暂无记录':s.days[0].rows.map(gameName).join(' · ')):esc(slot.kind))+'</small></div><div class="place-shares">'+(missing?'<span class="empty-line">暂无记录</span>':bar(s.shares)+numbers(s.shares))+'</div><div class="place-coverage"><b>'+(isDay?s.records+' 条':s.sampleDays+' 天')+'</b><small>'+esc(isDay?change:s.records+' 条内容')+'</small></div><span class="open-label">'+(isDay?'查看内容':'按日查看')+' <span class="ar">›</span></span></summary><div class="slot-body"></div></details>';
 }
@@ -128,20 +144,23 @@ function renderHero(V){
  $('hero-composition').innerHTML=V.slotDays?bar(V.shares)+numbers(V.shares):'<p>所选范围暂无数据</p>';
  const stat=(label,n,unit)=>'<div class="stat"><span class="stat-label">'+label+'</span><span class="stat-value">'+n+'</span><span class="stat-unit">'+unit+'</span></div>';
  $('stats').innerHTML=stat(state.contentType==='all'?'展示位置':'匹配资源位',V.observedSlots,'个位置')+stat('展示'+(state.contentType==='all'?'产品':contentLabel()),new Set(V.rows.map(r=>r.object_name).filter(Boolean)).size,'款'+(state.contentType==='all'?'产品':contentLabel()));
- if($('hero-scope'))$('hero-scope').textContent='口径：'+scopeCaption();
+ if($('hero-scope'))$('hero-scope').textContent='口径：'+scopeCaption()+' · '+V.slotDays+' 个资源位日等权平均，非曝光量';
  $('range-note').textContent=state.view==='daily'?'':V.validRange?(V.start===V.end?V.end:V.start+' — '+V.end)+' · '+V.dates.length+' 个记录日':'开始日期不能晚于结束日期。';
  const note=latest()&&latest()!==today()?'今天暂无更新':'';
  $('stale').hidden=!note;$('stale').textContent=note;
 }
 function renderInsights(V){
- const insights=M.insights(V);
- if(state.range==='latest'){
-  const d=M.dailyReport(DATA,latest(),filters());
-  if(d.previousDate&&V.slotDays){insights.splice(-1,1,{title:'近期资源变化',text:d.ready?d.previousDate+' → '+d.date+'，共同覆盖 '+d.comparableSlots.length+' 个位置：'+d.changedSlots.length+' 个位置有变化；新出现 '+d.counts.seen+' 条、内容变化 '+d.counts.changed+' 条、本次未见 '+d.counts.not_seen+' 条。'+(d.routeChanged?'页面范围不同，比较仅限共同位置。':''):'两次没有共同覆盖的位置，暂不能比较。'});}
+ const insights=M.insights(V).filter(item=>item.title!=='近期资源变化');
+ if(V.snapshots.length>=2 || (state.range==='latest'&&DATA.snapshots.length>=2)){
+  const last=V.snapshots.at(-1)?.date,d=last?M.dailyReport(DATA,last,{...filters(),priority:'focus'}):null;
+  if(d?.previousDate&&(state.range==='latest'||d.previousDate>=V.start)){
+   const changed=d.items.filter(x=>x.status!=='same'),names=[...new Set(changed.map(x=>x.row.slot_name||x.row.slot_id))].slice(0,3);
+   insights.push({title:'重点位置变化',text:d.ready?d.previousDate+' → '+d.date+'，共同覆盖 '+d.comparableSlots.length+' 个重点位置：新出现 '+d.counts.seen+' 条、内容变化 '+d.counts.changed+' 条、本次未见 '+d.counts.not_seen+' 条。'+(names.length?' 涉及：'+names.join('、')+'。':'')+(d.routeChanged?' 页面范围不同，仅比较共同位置。':''):'最近两次没有共同覆盖的重点位置，暂不能比较。'});
+  }
  }
- $('quality-note').hidden=!V.unknownProducts.length;
  $('insights').innerHTML=insights.map((x,i)=>'<article><span class="insight-index">0'+(i+1)+'</span><div><h3>'+esc(x.title)+'</h3><p>'+esc(x.text)+'</p></div></article>').join('');
- $('quality-note').textContent=!V.slotDays?'':V.unknownProducts.length?'归属待确认：'+V.unknownProducts.join('、')+'。':'';
+ const quality=$('quality-note');quality.hidden=!V.unknownProducts.length;
+ quality.innerHTML=V.unknownProducts.length?'<details><summary>归属待核实 · '+V.unknownProducts.length+' 个名称</summary><p>'+V.unknownProducts.map(esc).join('、')+'</p></details>':'';
  $('trend-details').hidden=V.dates.length<3;$('timeline').innerHTML='';if($('trend-details').open)renderTimeline();
 }
 function renderTimeline(){const V=currentView;const days=V.timeline.slice(-30).reverse();$('timeline').innerHTML=days.length?'<div class="table-scroll"><table class="data-table timeline-table"><colgroup><col class="col-date"><col span="5"></colgroup><thead><tr><th>日期</th><th>展示位置</th><th>腾讯</th><th>其他厂商</th><th>待核实</th><th>活动／专题</th></tr></thead><tbody>'+days.map(d=>'<tr><td><button class="text-action" data-open-day="'+d.date+'">'+d.date+'</button></td><td>'+d.slots+'</td>'+M.BUCKETS.map(k=>'<td>'+percent(d.shares[k])+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>':'<p>暂无数据。</p>';}
@@ -197,7 +216,7 @@ function render({preserve=false}={}){
  if(isSummary){
   lastRenderToday=today();currentView=null;dayReport=null;filteredRows=[];
   ['dataset-empty','filters','hero','overview-panel','daily-panel','query-panel','range-note','stale'].forEach(id=>$(id).hidden=true);
-  window.ResourceWatchSummary?.render?.({data:ALL_DATA,onOpenDataset:openSummaryDataset});
+  window.ResourceWatchSummary?.render?.({data:ALL_DATA,onOpenDataset:openSummaryDataset,onOpenHistory:openSummaryHistory});
   renderFooter();syncUrl();return;
  }
  $('dataset-empty').hidden=hasData;$('dataset-empty-title').textContent=DATA.dataset.label;
@@ -236,6 +255,11 @@ function openSummaryDataset(id,context={}){
  if(selected&&/^\d{4}-\d{2}-\d{2}$/.test(selected.start)&&/^\d{4}-\d{2}-\d{2}$/.test(selected.end)&&M.calendarDays(selected.start,selected.end)>0){state.range='custom';state.start=selected.start;state.end=selected.end;}else state.range='latest';
  state.query='';state.owner='all';state.page=1;state.onlyChanges=false;state.slotDates={};
  activateView('overview');
+}
+function openSummaryHistory(id){
+ if(!registry().some(d=>scopeListed(d)&&d.id===id))return;
+ changeDataset(id,{renderNow:false});state.range='all';state.p='all';state.priority='all';state.contentType='all';state.query='';state.owner='all';state.page=1;
+ activateView('query');$('search').focus({preventScroll:true});
 }
 $('dataset-select').addEventListener('change',e=>{if(registry().some(d=>scopeListed(d)&&d.id===e.target.value&&vendorOf(d)===vendorOf(DATA.dataset)))changeDataset(e.target.value);});
 $('date-from').value=state.start;$('date-to').value=state.end;$('date-from').max=today();$('date-to').max=today();

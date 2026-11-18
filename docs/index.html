@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="assets/v2.css?v=20261115">
 <script src="data/bootstrap.js"></script><script src="assets/view-model.js?v=20261115" defer></script><script src="assets/summary.js?v=20261115" defer></script><script src="assets/game-history.js?v=20261115" defer></script><script src="assets/v2.js?v=20261115" defer></script>
 </head>
-<body>
+<body><script>if(window.self!==window.top)document.documentElement.classList.add("rw-embedded");</script>
 <header class="top"><div class="wrap">
 <a class="brand" href="#summary" data-view="summary"><svg viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#0052d9"/><path d="M7 19V14M14 19V8M21 19V11" stroke="white" stroke-width="3"/></svg><span>资源观察台 · 多厂商</span></a>
 <nav class="top-nav" aria-label="页面导航"><a href="#summary" data-view="summary" aria-current="page">厂商汇总</a><a href="#overview" data-view="overview">资源总览</a><a href="#daily" data-view="daily">每日动态</a><a href="#query" data-view="query">历史查询</a></nav>
@@ -55,6 +55,7 @@
 <p class="meta" id="meta" role="status" aria-live="polite"></p>
 </footer>
 </main>
+<dialog id="evidence-viewer" aria-labelledby="evidence-viewer-title"><div class="evidence-viewer-head"><h2 id="evidence-viewer-title">展示截图</h2><button type="button" id="evidence-viewer-close">关闭</button></div><p id="evidence-viewer-error" role="status" hidden>截图暂时无法加载，请稍后重试。</p><img id="evidence-viewer-image" alt="资源位展示截图"></dialog>
 <dialog id="record-dialog" aria-labelledby="record-dialog-title"><div class="dialog-heading"><h2 id="record-dialog-title">记录详情</h2><button type="button" id="close-record" aria-label="关闭记录详情">关闭</button></div><div id="record-dialog-content"></div></dialog>
 <dialog id="game-history-dialog" aria-labelledby="game-history-title">
 <div class="dialog-heading game-history-heading"><div><p class="game-history-kicker">各厂商历史展示</p><div class="title-with-note"><h2 id="game-history-title"></h2></div></div><button type="button" id="close-game-history" autofocus>关闭</button></div>

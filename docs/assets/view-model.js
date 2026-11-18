@@ -116,15 +116,12 @@
     const ranked=view.summaries.filter(s=>s.sampleDays&&s.shares.tencent>0).sort((a,b)=>b.shares.tencent-a.shares.tencent||a.slot.order-b.slot.order);
     const results=[];
     if(ranked.length){const first=ranked[0],ties=ranked.filter(x=>Math.abs(x.shares.tencent-first.shares.tencent)<1e-10);
-      results.push({title:'腾讯占比较高的位置',text:ties.slice(0,3).map(x=>x.slot.platform+' '+x.slot.name).join('、')+(ties.length>3?`等 ${ties.length} 个位置`:'')+`，${view.start===view.end?'当天':'区间日均'}均为 ${(first.shares.tencent*100).toFixed(1)}%。`});
+      results.push({title:'腾讯占比较高的位置',text:ties.slice(0,3).map(x=>x.slot.platform+' '+x.slot.name+(view.start===view.end&&x.days.length===1?`（${x.days[0].counts.tencent}/${x.days[0].count} 条）`:'' )).join('、')+(ties.length>3?`等 ${ties.length} 个位置`:'')+`，${view.start===view.end?'当天':'区间日均'}均为 ${(first.shares.tencent*100).toFixed(1)}%。`});
     }else results.push({title:'当前记录中未出现腾讯产品',text:'当前日期范围内没有相关展示记录。'});
     const companyTotals={};
     view.summaries.forEach(s=>s.days.forEach(d=>d.rows.filter(r=>bucketFor(r)==='other').forEach(r=>{const c=r.ownership.company;companyTotals[c]=(companyTotals[c]||0)+1/d.count;})));
     const other=Object.entries(companyTotals).sort((a,b)=>b[1]-a[1]);
     if(other.length)results.push({title:'其他发行／运营方',text:other.slice(0,3).map(([name,n])=>`${name} ${(n/view.slotDays*100).toFixed(1)}%`).join('、')+'，按资源位与日期计算。'});
-    if(view.dates.length>=2&&view.diff.ready){const chosen=new Set(view.summaries.map(s=>s.slot.id));const common=view.diff.comparableSlots.filter(id=>chosen.has(id));
-      results.push({title:'近期资源变化',text:common.length?`${view.snapshots.at(-2).date} → ${view.snapshots.at(-1).date}，共同覆盖 ${common.length} 个位置：新出现 ${view.diff.items.filter(x=>x.status==='seen').length} 条、换内容 ${view.diff.items.filter(x=>x.status==='changed').length} 条、本次未见 ${view.diff.items.filter(x=>x.status==='not_seen').length} 条。${view.diff.routeChanged?'两次记录的页面范围不同，比较范围以共同位置为准。':''}`:'最近两次没有共同覆盖的位置，暂不能比较。'});
-    }
     return results;
   }
   function dailyReport(data,date,{platform='all',priority='all',datasetId,contentType='all'}={}) {
